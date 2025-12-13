@@ -4,24 +4,43 @@ import Sidebar from '../components/Sidebar';
 import DashboardHeader from '../components/DashboardHeader';
 import { UserPlus, CheckSquare, BarChart2, Users, Book, DollarSign, Calendar, MessageSquare, Briefcase, Settings, Bell, Library, Edit, Trash2, Key } from 'lucide-react';
 import { addStaff, getPendingStudents, approveStudent } from '../services/managementService';
-import { deleteUser, getStaff, updateUser } from '../services/dataService';
+import { deleteUser, getStaff, updateUser, getEnrolledStudents } from '../services/dataService';
 import { handleFirebaseError } from '../utils/errorHandler';
 import { useAuth } from '../context/AuthContext';
 import './dashboard.css';
 
 const Overview = ({ user }) => {
+    const [stats, setStats] = useState({ students: 0, staff: 0 });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const students = await getEnrolledStudents(); // Fetch all students
+                const staff = await getStaff(); // Fetch all staff (teachers)
+                setStats({
+                    students: students.length,
+                    staff: staff.length
+                });
+            } catch (error) {
+                console.error("Error fetching dashboard stats:", error);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
     return (
         <div>
             <h2 className="page-title">Welcome, {user?.name || 'Principal'}</h2>
             <div className="card-grid">
                 <div className="glass-panel dashboard-card">
                     <h3 className="card-title">Total Students</h3>
-                    <p className="stat-value">0</p>
+                    <p className="stat-value">{stats.students}</p>
                     <span className="text-sm text-gray-400">Enrolled & Active</span>
                 </div>
                 <div className="glass-panel dashboard-card">
                     <h3 className="card-title">Total Staff</h3>
-                    <p className="stat-value">0</p>
+                    <p className="stat-value">{stats.staff}</p>
                     <span className="text-sm text-gray-400">Teachers & Admin</span>
                 </div>
                 <div className="glass-panel dashboard-card">
