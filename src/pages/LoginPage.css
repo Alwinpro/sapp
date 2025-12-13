@@ -1,0 +1,117 @@
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 450px;
+    padding: 2.5rem;
+    border-radius: 1.5rem;
+    position: relative;
+}
+
+.back-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.back-btn:hover {
+    color: var(--text-primary);
+}
+
+.login-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.login-header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.login-header p {
+    color: var(--text-secondary);
+}
+
+/* Glow sets */
+.admin-glow h1 {
+    text-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+}
+
+.management-glow h1 {
+    text-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+}
+
+.teacher-glow h1 {
+    text-shadow: 0 0 30px rgba(249, 115, 22, 0.5);
+}
+
+.student-glow h1 {
+    text-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+}
+
+.error-msg {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.login-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.login-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 1rem;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+.input-field {
+    padding-left: 3rem;
+    /* Space for icon */
+}
+
+.login-btn {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.login-footer {
+    margin-top: 2rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
