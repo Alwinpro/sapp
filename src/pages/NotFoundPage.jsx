@@ -29,8 +29,11 @@ const NotFoundPage = () => {
                         </Link>
                     </div>
 
-                    <div className="border-t border-white/10 pt-6">
-                        <p className="text-gray-400 font-medium">Need help? Contact IT Support</p>
+                    <div className="border-t border-white/10 pt-8 mt-2 flex flex-col items-center justify-center">
+                        <div className="px-5 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm flex items-center gap-3 shadow-lg">
+                            <MessageCircle size={18} className="text-blue-400" />
+                            <span className="text-gray-300 font-medium tracking-wide">Need help? Contact IT Support</span>
+                        </div>
                     </div>
                 </div>
             </div>
