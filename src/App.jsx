@@ -33,7 +33,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function App() {
   return (
-    <Router>
+    <Router basename="/sapp">
       <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
