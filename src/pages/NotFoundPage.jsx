@@ -30,17 +30,7 @@ const NotFoundPage = () => {
                     </div>
 
                     <div className="border-t border-white/10 pt-6">
-                        <p className="text-sm text-gray-400 mb-4">Need help? Contact Support:</p>
-                        <div className="flex flex-col gap-3">
-                            <a href="mailto:support@nexusschool.com" className="flex items-center justify-center gap-2 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5 hover:border-white/20">
-                                <Mail size={16} className="text-blue-400" />
-                                <span className="text-sm">support@nexusschool.com</span>
-                            </a>
-                            <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-white/5 border border-white/5">
-                                <MessageCircle size={16} className="text-green-400" />
-                                <span className="text-sm">+1 (555) 123-4567</span>
-                            </div>
-                        </div>
+                        <p className="text-gray-400 font-medium">Need help? Contact IT Support</p>
                     </div>
                 </div>
             </div>
