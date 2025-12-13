@@ -10,18 +10,36 @@ import { handleFirebaseError } from '../utils/errorHandler';
 import './dashboard.css';
 
 const Overview = ({ user }) => {
+    const [stats, setStats] = useState({ students: 0, pending: 0 });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const students = await getEnrolledStudents();
+                setStats({
+                    students: students.length,
+                    pending: 0 // Ideally this would fetch actual pending tasks
+                });
+            } catch (error) {
+                console.error("Error fetching teacher stats:", error);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
     return (
         <div>
             <h2 className="page-title">Welcome, {user?.name || 'Teacher'}</h2>
             <div className="card-grid">
                 <div className="glass-panel dashboard-card">
                     <h3 className="card-title">My Students</h3>
-                    <p className="stat-value">0</p>
+                    <p className="stat-value">{stats.students}</p>
                     <span className="text-sm text-gray-400">Total Enrolled</span>
                 </div>
                 <div className="glass-panel dashboard-card">
                     <h3 className="card-title">Pending Tasks</h3>
-                    <p className="stat-value">0</p>
+                    <p className="stat-value">{stats.pending}</p>
                     <span className="text-sm text-gray-400">Grading & Attendance</span>
                 </div>
             </div>
