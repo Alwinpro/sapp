@@ -9,7 +9,6 @@ import ManagementDashboard from './pages/ManagementDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import NotFoundPage from './pages/NotFoundPage';
-import AdminSignup from './pages/AdminSignup';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -48,9 +47,6 @@ function App() {
           <Route path="/login/management" element={<LoginPage role="management" />} />
           <Route path="/login/teacher" element={<LoginPage role="teacher" />} />
           <Route path="/login/student" element={<LoginPage role="student" />} />
-
-          {/* Admin Signup Route - One Time Use */}
-          <Route path="/admin/signup" element={<AdminSignup />} />
 
           {/* Dashboards */}
           <Route

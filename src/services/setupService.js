@@ -41,7 +41,6 @@ export const createSystemAdmin = async (email, password, name) => {
                 name,
                 role: 'admin',
                 status: 'active',
-                is_system_admin: true,
                 created_at: new Date().toISOString()
             });
 
