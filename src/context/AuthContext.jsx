@@ -55,6 +55,49 @@ export const AuthProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, []);
 
+    const ensureUserProfileExists = async (user) => {
+        try {
+            // Check if ANY users exist (to decide if this should be the first admin)
+            const { count, error: countError } = await supabase
+                .from('users')
+                .select('*', { count: 'exact', head: true });
+
+            if (countError) throw countError;
+
+            // Determine role: If table is empty, first user is Admin. Otherwise, default to student (or handle appropriately)
+            // But if the user is trying to be admin, they might be blocked.
+            // Safe fallback: Make them 'student' unless it's the very first user?
+            // Actually, if we are in this state, the user is likely the admin who got deleted.
+            // Let's check if there is an operational admin.
+            const { data: existingAdmin } = await supabase
+                .from('users')
+                .select('id')
+                .eq('role', 'admin')
+                .limit(1);
+
+            const role = (!existingAdmin || existingAdmin.length === 0) ? 'admin' : 'student';
+
+            // Insert the missing profile
+            const { error: insertError } = await supabase
+                .from('users')
+                .insert({
+                    id: user.id,
+                    email: user.email,
+                    name: user.user_metadata?.name || ' recovered_user',
+                    role: role,
+                    status: 'active',
+                    created_at: new Date().toISOString()
+                });
+
+            if (insertError) throw insertError;
+
+            return true; // Successfully restored
+        } catch (err) {
+            console.error("Auto-fix profile failed:", err);
+            return false;
+        }
+    };
+
     const fetchUserData = async (user) => {
         try {
             const { data, error } = await supabase
@@ -84,6 +127,24 @@ export const AuthProvider = ({ children }) => {
 
                 // If this is called during session restoration (useEffect), we might want to force logout?
                 // For now, let's just return null so 'login' function knows it failed.
+                console.warn("Profile missing. Attempting to auto-create...");
+                const restored = await ensureUserProfileExists(user);
+
+                if (restored) {
+                    // Retry fetch
+                    const { data: newData } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (newData) {
+                        setUserRole(newData.role);
+                        setUserData(newData);
+                        setCurrentUser(user);
+                        return newData;
+                    }
+                }
                 return null;
             }
         } catch (error) {
