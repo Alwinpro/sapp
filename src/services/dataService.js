@@ -161,3 +161,17 @@ export const getStaff = async () => {
         throw error;
     }
 }
+
+export const updateUserPassword = async (studentId, newPassword) => {
+    try {
+        const updatePasswordFn = httpsCallable(functions, 'updateUserPassword');
+        const result = await updatePasswordFn({ uid: studentId, password: newPassword });
+        return result.data;
+    } catch (error) {
+        console.error("Error calling updateUserPassword:", error);
+        if (error.code === 'functions/not-found' || error.message.includes('internal')) {
+            throw new Error("Backend Cloud Function 'updateUserPassword' is not deployed.");
+        }
+        throw error;
+    }
+};

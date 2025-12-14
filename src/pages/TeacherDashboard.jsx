@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import DashboardHeader from '../components/DashboardHeader';
 import { UserPlus, ClipboardList, BookOpen, Users, Calendar, BarChart2, MessageSquare, Edit, Trash2, Key } from 'lucide-react';
 import { addStudent } from '../services/teacherService';
-import { getEnrolledStudents, saveGrade, getStudentGrades, updateGrade, deleteGrade, deleteUser, updateUser } from '../services/dataService';
+import { getEnrolledStudents, saveGrade, getStudentGrades, updateGrade, deleteGrade, deleteUser, updateUser, updateUserPassword } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import { handleFirebaseError } from '../utils/errorHandler';
 import './dashboard.css';
@@ -295,9 +295,21 @@ const PasswordChangeModal = ({ studentId, onClose }) => {
         }
 
         setLoading(true);
-        alert('⚠️ Password change requires backend implementation with Firebase Admin SDK.');
-        onClose();
-        setLoading(false);
+        try {
+            await updateUserPassword(studentId, newPassword);
+            alert('✅ Password updated successfully!');
+            onClose();
+        } catch (error) {
+            console.error('Password update error:', error);
+            // Check for specific error about missing cloud function
+            if (error.message.includes('not deployed')) {
+                alert(`⚠️ Backend Error: The secure Cloud Function for password updates is not deployed. \n\nTechnical details: ${error.message}`);
+            } else {
+                alert('❌ Failed to update password: ' + error.message);
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
