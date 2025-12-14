@@ -106,37 +106,39 @@ export const AuthProvider = ({ children }) => {
                 .eq('id', user.id)
                 .single();
 
-            // Ignore PGRST116 (Row not found) for now, but handle it logic-wise
-            if (error && error.code !== 'PGRST116') {
-                throw error;
+            if (error) {
+                // Handle specific database errors
+                if (error.code === '42P01') {
+                    throw new Error("Critical Error: The database tables have not been created. Please run the setup SQL script in Supabase.");
+                }
+                if (error.code === '42501') {
+                    throw new Error("Permission Denied: RLS policies are blocking access. Please run the RLS setup script.");
+                }
+                // Ignore PGRST116 (Row not found) as we attempts auto-fix next
+                if (error.code !== 'PGRST116') {
+                    throw error;
+                }
             }
 
             if (data) {
-                // If profile found, everything is good
                 setUserRole(data.role);
                 setUserData(data);
                 setCurrentUser(user);
                 return data;
             } else {
-                // Profile missing: Do NOT log them in fully.
-                console.warn("User document not found in 'users' table. Role not assigned.");
-                // We deliberately do NOT set currentUser here so the app treats them as not logged in
-                // unless they are in the process of initial setup (managed elsewhere)
-                // However, for pure auth purposes, they ARE authenticated with Supabase.
-                // But our app requires a profile.
-
-                // If this is called during session restoration (useEffect), we might want to force logout?
-                // For now, let's just return null so 'login' function knows it failed.
+                // Profile missing. Attempt to self-heal.
                 console.warn("Profile missing. Attempting to auto-create...");
                 const restored = await ensureUserProfileExists(user);
 
                 if (restored) {
                     // Retry fetch
-                    const { data: newData } = await supabase
+                    const { data: newData, error: retryError } = await supabase
                         .from('users')
                         .select('*')
                         .eq('id', user.id)
                         .single();
+
+                    if (retryError) throw retryError;
 
                     if (newData) {
                         setUserRole(newData.role);
@@ -145,11 +147,13 @@ export const AuthProvider = ({ children }) => {
                         return newData;
                     }
                 }
+                // If we get here, auto-fix failed or returned no data without throwing
                 return null;
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
-            return null; // Return null on error
+            // Propagate the specific error message to the login function
+            throw error;
         }
     };
 
