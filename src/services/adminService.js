@@ -1,45 +1,49 @@
-import { db } from '../firebase/config';
-import { collection, addDoc, getDocs, setDoc, doc, Timestamp } from 'firebase/firestore';
-import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { firebaseConfig } from '../firebase/config';
+import { supabase } from '../supabase/config';
 
 export const createSchool = async (schoolData, managementPassword) => {
-    // Secondary App for creating user without logging out admin
-    const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-    const secondaryAuth = getAuth(secondaryApp);
-
     try {
         // 1. Create School
-        const schoolRef = await addDoc(collection(db, "schools"), {
-            name: schoolData.name,
-            address: schoolData.address,
-            contact: schoolData.contact,
-            createdAt: Timestamp.now()
+        const { data: school, error: schoolError } = await supabase
+            .from('schools')
+            .insert([{
+                name: schoolData.name,
+                address: schoolData.address,
+                contact: schoolData.contact,
+                created_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (schoolError) throw schoolError;
+        const schoolId = school.id;
+
+        // 2. Create Management User (Auth)
+        // WARNING: Client-side signUp will sign in as the new user!
+        // To avoid this, we would need a backend function. 
+        // For now, we proceed as-is, assuming this is an initial setup or accepting the session switch.
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: schoolData.principalEmail,
+            password: managementPassword,
         });
-        const schoolId = schoolRef.id;
 
-        // 2. Create Management User
-        const email = schoolData.principalEmail;
-        const password = managementPassword; // Need to pass this
+        if (authError) throw authError;
+        const user = authData.user;
 
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-        const user = userCredential.user;
+        if (user) {
+            // 3. Create User Profile
+            const { error: profileError } = await supabase
+                .from('users')
+                .insert([{
+                    id: user.id, // Link to Auth ID
+                    email: schoolData.principalEmail,
+                    role: 'management',
+                    school_id: schoolId,
+                    name: `Principal - ${schoolData.name}`,
+                    created_at: new Date().toISOString()
+                }]);
 
-        // 3. Create User Document in Firestore (Linked to School)
-        await setDoc(doc(db, "users", user.uid), {
-            email: email,
-            role: 'management',
-            schoolId: schoolId,
-            name: `Principal - ${schoolData.name}`,
-            createdAt: Timestamp.now()
-        });
-
-        // 4. Cleanup
-        await signOut(secondaryAuth);
-        // Note: deleteApp(secondaryApp) is ideal but not always strictly necessary for a quick action,
-        // but good practice if supported by SDK version. v9 modular doesn't expose deleteApp easily in all contexts?
-        // Actually it does: import { deleteApp } from "firebase/app"; 
+            if (profileError) throw profileError;
+        }
 
         return schoolId;
     } catch (error) {
@@ -50,8 +54,12 @@ export const createSchool = async (schoolData, managementPassword) => {
 
 export const getAllUsers = async () => {
     try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const { data, error } = await supabase
+            .from('users')
+            .select('*');
+
+        if (error) throw error;
+        return data;
     } catch (error) {
         console.error("Error getting users: ", error);
         throw error;
