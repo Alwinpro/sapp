@@ -60,3 +60,59 @@ exports.deleteUser = functions.https.onCall(async (data, context) => {
         );
     }
 });
+
+// Cloud Function to update user password
+exports.updateUserPassword = functions.https.onCall(async (data, context) => {
+    // Check if the request is made by an authenticated user
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'User must be authenticated to update passwords.'
+        );
+    }
+
+    const callerUid = context.auth.uid;
+    const callerDoc = await admin.firestore().collection('users').doc(callerUid).get();
+    const callerRole = callerDoc.data()?.role;
+
+    // Allow teachers, management, and admin to update passwords
+    if (callerRole !== 'teacher' && callerRole !== 'management' && callerRole !== 'admin') {
+        throw new functions.https.HttpsError(
+            'permission-denied',
+            'Only teachers, management, or admin can update passwords.'
+        );
+    }
+
+    const { uid, password } = data;
+
+    if (!uid || !password) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'User ID and new password are required.'
+        );
+    }
+
+    if (password.length < 6) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Password must be at least 6 characters long.'
+        );
+    }
+
+    try {
+        await admin.auth().updateUser(uid, {
+            password: password
+        });
+
+        return {
+            success: true,
+            message: 'Password updated successfully.'
+        };
+    } catch (error) {
+        console.error('Error updating password:', error);
+        throw new functions.https.HttpsError(
+            'internal',
+            'Failed to update password: ' + error.message
+        );
+    }
+});
