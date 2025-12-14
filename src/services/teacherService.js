@@ -1,52 +1,56 @@
-import { db } from '../firebase/config';
-import { collection, addDoc, updateDoc, doc, getDocs, query, where, Timestamp, setDoc } from 'firebase/firestore';
-import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { firebaseConfig } from '../firebase/config';
+import { supabase } from '../supabase/config';
 
 export const addStudent = async (studentData) => {
-    // Secondary App for creating user without logging out the current user (Teacher)
-    const appName = "SecondaryApp-Student-" + new Date().getTime();
-    const secondaryApp = initializeApp(firebaseConfig, appName);
-    const secondaryAuth = getAuth(secondaryApp);
-
     try {
         const { email, password, name, rollNumber, grade } = studentData;
 
-        // 1. Create Authentication User
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-        const user = userCredential.user;
-
-        // 2. Create User Document in Firestore
-        await setDoc(doc(db, "users", user.uid), {
-            email: email,
-            name: name,
-            role: 'student',
-            rollNumber: rollNumber,
-            grade: grade || 'N/A', // Assuming grade is passed or defaulted
-            status: 'active', // Or 'pending' if Management needs to approve. Prompt says "Approve Student Enrollment (added by teachers)", so status should probably be pending.
-            createdAt: Timestamp.now(),
+        // 1. Create Authentication User in Supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name,
+                    role: 'student'
+                }
+            }
         });
 
-        // 3. Create Student Table Entry if separate (Optional based on schema design, but likely useful for queries)
-        // For simplicity, we query 'users' where role is 'student', but if we have a separate 'students' collection as implied by 'approveStudent' logic in previous turns:
+        if (authError) throw authError;
+        const userId = authData.user.id;
 
-        await setDoc(doc(db, "students", user.uid), {
-            uid: user.uid, // Link to User
-            name: name,
-            email: email,
-            rollNumber: rollNumber,
-            grade: grade || 'N/A',
-            status: 'pending', // Per Management Dashboard requirement "Approve Student Enrollment"
-            schoolId: 'TODO_LINK_SCHOOL_ID', // In real app
-            createdAt: Timestamp.now()
-        });
+        // 2. Create User Record in users table
+        const { error: userError } = await supabase
+            .from('users')
+            .insert({
+                id: userId,
+                email,
+                name,
+                role: 'student',
+                roll_number: rollNumber,
+                grade: grade || 'N/A',
+                status: 'active',
+                created_at: new Date().toISOString()
+            });
 
+        if (userError) throw userError;
 
-        // 4. Cleanup
-        await signOut(secondaryAuth);
+        // 3. Create Student Table Entry
+        const { error: studentError } = await supabase
+            .from('students')
+            .insert({
+                id: userId,
+                name,
+                email,
+                roll_number: rollNumber,
+                grade: grade || 'N/A',
+                status: 'pending',
+                created_at: new Date().toISOString()
+            });
 
-        return user.uid;
+        if (studentError) throw studentError;
+
+        return userId;
     } catch (error) {
         console.error("Error adding student: ", error);
         throw error;

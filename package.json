@@ -15,6 +15,7 @@
     "deploy-functions": "firebase deploy --only functions"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.87.1",
     "date-fns": "^4.1.0",
     "firebase": "^12.6.0",
     "framer-motion": "^12.23.26",

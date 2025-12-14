@@ -1,40 +1,39 @@
-import { db } from '../firebase/config';
-import { collection, addDoc, updateDoc, doc, getDocs, query, where, Timestamp, setDoc } from 'firebase/firestore';
-import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { firebaseConfig } from '../firebase/config';
+import { supabase } from '../supabase/config';
 
 export const addStaff = async (staffData) => {
-    // Secondary App for creating user without logging out the current user (Management)
-    // We use a different name for the app instance to avoid conflict
-    const appName = "SecondaryApp-" + new Date().getTime();
-    const secondaryApp = initializeApp(firebaseConfig, appName);
-    const secondaryAuth = getAuth(secondaryApp);
-
     try {
         const { email, password, name, subject } = staffData;
 
-        // 1. Create Authentication User
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-        const user = userCredential.user;
-
-        // 2. Create User Document in Firestore
-        // We assume 'schoolId' should be linked here. 
-        // For now we will add a placeholder or rely on logic that links them later.
-        // In a real scenario, we'd pass the current management user's schoolId to this function.
-        await setDoc(doc(db, "users", user.uid), {
-            email: email,
-            name: name,
-            role: 'teacher',
-            subject: subject,
-            createdAt: Timestamp.now(),
-            // schoolId: 'TODO_LINK_SCHOOL_ID' 
+        // 1. Create Authentication User in Supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name,
+                    role: 'teacher'
+                }
+            }
         });
 
-        // 3. Cleanup
-        await signOut(secondaryAuth);
+        if (authError) throw authError;
+        const userId = authData.user.id;
 
-        return user.uid;
+        // 2. Create User Document in users table
+        const { error: userError } = await supabase
+            .from('users')
+            .insert({
+                id: userId,
+                email,
+                name,
+                role: 'teacher',
+                subject,
+                created_at: new Date().toISOString()
+            });
+
+        if (userError) throw userError;
+
+        return userId;
     } catch (error) {
         console.error("Error adding staff: ", error);
         throw error;
@@ -42,14 +41,20 @@ export const addStaff = async (staffData) => {
 };
 
 export const getPendingStudents = async (schoolId) => {
-    const q = query(collection(db, "students"), where("schoolId", "==", schoolId), where("status", "==", "pending"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('status', 'pending');
+
+    if (error) throw error;
+    return data || [];
 };
 
 export const approveStudent = async (studentId) => {
-    const studentRef = doc(db, "students", studentId);
-    await updateDoc(studentRef, {
-        status: 'active'
-    });
+    const { error } = await supabase
+        .from('students')
+        .update({ status: 'active' })
+        .eq('id', studentId);
+
+    if (error) throw error;
 };

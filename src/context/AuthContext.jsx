@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../firebase/config';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { supabase } from '../supabase/config';
 
 const AuthContext = createContext();
 
@@ -14,23 +12,19 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                // Fetch user role and details from Firestore
-                try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        setUserRole(data.role);
-                        setUserData(data);
-                    } else {
-                        // Fallback for demo/testing or unmapped users
-                        console.error("User document not found inside 'users' collection.");
-                    }
-                } catch (error) {
-                    console.error("Error fetching user data:", error);
-                }
-                setCurrentUser(user);
+        // Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                fetchUserData(session.user);
+            } else {
+                setLoading(false);
+            }
+        });
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                await fetchUserData(session.user);
             } else {
                 setCurrentUser(null);
                 setUserRole(null);
@@ -39,15 +33,43 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         });
 
-        return unsubscribe;
+        return () => subscription.unsubscribe();
     }, []);
 
-    const login = (email, password) => {
-        return signInWithEmailAndPassword(auth, email, password);
+    const fetchUserData = async (user) => {
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                setUserRole(data.role);
+                setUserData(data);
+                setCurrentUser(user);
+            } else {
+                console.error("User document not found in 'users' table.");
+            }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+        }
     };
 
-    const logout = () => {
-        return signOut(auth);
+    const login = async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const logout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
     };
 
     const value = {
