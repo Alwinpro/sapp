@@ -25,8 +25,9 @@ const LoginPage = ({ role }) => {
             // Navigation is handled by ProtectedRoute mostly, but better to push here too.
             navigate(`/dashboard/${role}`);
         } catch (err) {
-            setError('Failed to log in. Please check your credentials.');
-            console.error(err);
+            // Show the actual error message from Supabase or our AuthContext
+            setError(err.message || 'Failed to log in. Please check your credentials.');
+            console.error("Login Error:", err);
         }
         setLoading(false);
     };

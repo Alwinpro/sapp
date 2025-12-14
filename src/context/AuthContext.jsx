@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
             if (!profile) {
                 // Profile missing! Sign them out immediately.
                 await supabase.auth.signOut();
-                throw new Error("Profile not found. Please contact support.");
+                throw new Error("Login successful, but your user profile could not be found. This may be due to missing Row Level Security (RLS) policies in your Supabase database.");
             }
         }
 
