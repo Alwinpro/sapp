@@ -1,33 +1,39 @@
-import { supabase } from '../supabase/config';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db } from '../firebase/config';
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
+
+// Initialize Cloud Functions
+const functions = getFunctions();
 
 // --- SHARED / GENERIC ---
 
+// Enhanced deleteUser that calls Cloud Function
 export const deleteUser = async (userId) => {
     try {
-        // Delete from users table
-        const { error: usersError } = await supabase
-            .from('users')
-            .delete()
-            .eq('id', userId);
+        // Try to use Cloud Function if available
+        try {
+            const deleteUserFunction = httpsCallable(functions, 'deleteUser');
+            const result = await deleteUserFunction({ userId });
+            console.log('Cloud Function result:', result.data);
+            return result.data;
+        } catch (cloudError) {
+            console.warn('Cloud Function not available, falling back to client-side deletion:', cloudError);
 
-        if (usersError) throw usersError;
+            // Fallback: Delete from Firestore only (Auth deletion requires Cloud Function)
+            await deleteDoc(doc(db, "users", userId));
 
-        // Try to delete from students table if exists
-        await supabase
-            .from('students')
-            .delete()
-            .eq('id', userId);
+            try {
+                await deleteDoc(doc(db, "students", userId));
+            } catch (e) {
+                // Silent fail if not in students collection
+            }
 
-        // Delete from Supabase Auth
-        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-        if (authError) {
-            console.warn('Could not delete from auth (requires service role key):', authError);
+            console.warn('⚠️ User deleted from Firestore only. Authentication account still exists. Deploy Cloud Functions for complete deletion.');
+            return {
+                success: true,
+                warning: 'Deleted from Firestore only. Authentication account remains. Deploy Cloud Functions for complete deletion.'
+            };
         }
-
-        return {
-            success: true,
-            message: 'User deleted successfully'
-        };
     } catch (error) {
         console.error('Delete error:', error);
         throw error;
@@ -36,15 +42,10 @@ export const deleteUser = async (userId) => {
 
 export const updateUser = async (userId, updates) => {
     try {
-        const { error } = await supabase
-            .from('users')
-            .update({
-                ...updates,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', userId);
-
-        if (error) throw error;
+        await updateDoc(doc(db, "users", userId), {
+            ...updates,
+            updatedAt: Timestamp.now()
+        });
     } catch (error) {
         throw error;
     }
@@ -54,43 +55,51 @@ export const updateUser = async (userId, updates) => {
 
 export const getEnrolledStudents = async (schoolId, grade) => {
     try {
-        let query = supabase
-            .from('users')
-            .select('*')
-            .eq('role', 'student');
+        const q = query(collection(db, "users"), where("role", "==", "student"));
+
+        const snapshot = await getDocs(q);
+        let students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         if (grade) {
-            query = query.eq('grade', grade);
+            students = students.filter(s => s.grade === grade);
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
-
-        return data || [];
+        return students;
     } catch (error) {
         throw error;
     }
 };
 
+// Enhanced grade saving with exam type support
 export const saveGrade = async (studentId, studentName, subject, examType, marks, teacherId, teacherName) => {
+    console.log('saveGrade function called with:', {
+        studentId,
+        studentName,
+        subject,
+        examType,
+        marks,
+        teacherId,
+        teacherName
+    });
+
     try {
         const gradeId = `${studentId}_${subject}_${examType}`;
+        console.log('Generated gradeId:', gradeId);
 
-        const { error } = await supabase
-            .from('grades')
-            .upsert({
-                id: gradeId,
-                student_id: studentId,
-                student_name: studentName,
-                subject,
-                exam_type: examType,
-                marks,
-                teacher_id: teacherId,
-                teacher_name: teacherName,
-                updated_at: new Date().toISOString()
-            });
+        const gradeData = {
+            studentId,
+            studentName,
+            subject,
+            examType,
+            marks,
+            teacherId,
+            teacherName,
+            updatedAt: Timestamp.now()
+        };
 
-        if (error) throw error;
+        console.log('Saving to Firestore:', gradeData);
+        await setDoc(doc(db, "grades", gradeId), gradeData);
+        console.log('Grade saved to Firestore successfully!');
     } catch (error) {
         console.error('Error in saveGrade:', error);
         throw error;
@@ -99,13 +108,9 @@ export const saveGrade = async (studentId, studentName, subject, examType, marks
 
 export const getStudentGrades = async (studentId) => {
     try {
-        const { data, error } = await supabase
-            .from('grades')
-            .select('*')
-            .eq('student_id', studentId);
-
-        if (error) throw error;
-        return data || [];
+        const q = query(collection(db, "grades"), where("studentId", "==", studentId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
         throw error;
     }
@@ -113,12 +118,7 @@ export const getStudentGrades = async (studentId) => {
 
 export const deleteGrade = async (gradeId) => {
     try {
-        const { error } = await supabase
-            .from('grades')
-            .delete()
-            .eq('id', gradeId);
-
-        if (error) throw error;
+        await deleteDoc(doc(db, "grades", gradeId));
     } catch (error) {
         throw error;
     }
@@ -126,30 +126,25 @@ export const deleteGrade = async (gradeId) => {
 
 export const updateGrade = async (gradeId, marks) => {
     try {
-        const { error } = await supabase
-            .from('grades')
-            .update({
-                marks,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', gradeId);
-
-        if (error) throw error;
+        await updateDoc(doc(db, "grades", gradeId), {
+            marks,
+            updatedAt: Timestamp.now()
+        });
     } catch (error) {
         throw error;
     }
 };
 
+// Get all grades for a specific subject and exam type
 export const getGradesBySubjectAndExam = async (subject, examType) => {
     try {
-        const { data, error } = await supabase
-            .from('grades')
-            .select('*')
-            .eq('subject', subject)
-            .eq('exam_type', examType);
-
-        if (error) throw error;
-        return data || [];
+        const q = query(
+            collection(db, "grades"),
+            where("subject", "==", subject),
+            where("examType", "==", examType)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
         throw error;
     }
@@ -159,34 +154,10 @@ export const getGradesBySubjectAndExam = async (subject, examType) => {
 
 export const getStaff = async () => {
     try {
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('role', 'teacher');
-
-        if (error) throw error;
-        return data || [];
+        const q = query(collection(db, "users"), where("role", "==", "teacher"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
         throw error;
     }
-};
-
-// Password update function - now works with Supabase!
-export const updateUserPassword = async (studentId, newPassword) => {
-    try {
-        const { error } = await supabase.auth.admin.updateUserById(
-            studentId,
-            { password: newPassword }
-        );
-
-        if (error) throw error;
-
-        return {
-            success: true,
-            message: 'Password updated successfully.'
-        };
-    } catch (error) {
-        console.error("Error updating password:", error);
-        throw new Error("Failed to update password: " + error.message);
-    }
-};
+}

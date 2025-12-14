@@ -8,7 +8,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ManagementDashboard from './pages/ManagementDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
-import NotFoundPage from './pages/NotFoundPage';
+import NotFound from './pages/NotFound';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function App() {
   return (
-    <Router basename="/sapp">
+    <Router>
       <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -81,8 +81,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Catch all route for 404 */}
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </Router>
