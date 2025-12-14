@@ -1,7 +1,14 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-admin.initializeApp();
+try {
+    const serviceAccount = require('./service-account.json');
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+} catch (e) {
+    admin.initializeApp();
+}
 
 // Cloud Function to delete user from both Firestore and Authentication
 exports.deleteUser = functions.https.onCall(async (data, context) => {
