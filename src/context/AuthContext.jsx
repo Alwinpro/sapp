@@ -38,20 +38,25 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUserData = async (user) => {
         try {
+            // Always set the auth user first so we don't redirect to login
+            setCurrentUser(user);
+
             const { data, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', user.id)
                 .single();
 
-            if (error) throw error;
+            if (error && error.code !== 'PGRST116') { // Ignore "Row not found" error code
+                throw error;
+            }
 
             if (data) {
                 setUserRole(data.role);
                 setUserData(data);
-                setCurrentUser(user);
             } else {
-                console.error("User document not found in 'users' table.");
+                console.warn("User document not found in 'users' table. Role not assigned.");
+                // Optional: Set a default role or temporary state if needed
             }
         } catch (error) {
             console.error("Error fetching user data:", error);

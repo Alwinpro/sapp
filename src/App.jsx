@@ -20,13 +20,24 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/" />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    // Redirect to their appropriate dashboard if allowed, or home
-    if (userRole === 'admin') return <Navigate to="/dashboard/admin" />;
-    if (userRole === 'management') return <Navigate to="/dashboard/management" />;
-    if (userRole === 'teacher') return <Navigate to="/dashboard/teacher" />;
-    if (userRole === 'student') return <Navigate to="/dashboard/student" />;
-    return <Navigate to="/" />;
+  if (allowedRoles) {
+    // If we have a user but no role yet (e.g. still fetching profile or profile missing),
+    // we shouldn't redirect to home immediately/silently.
+    // Ideally, show a "Profile Pending" or "Unauthorized" message.
+    if (!userRole) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white p-4 text-center">
+          <h2 className="text-xl font-bold text-yellow-500 mb-2">Profile Not Found</h2>
+          <p className="text-slate-400 mb-4">You are logged in, but your user profile could not be retrieved.</p>
+          <button onClick={() => window.location.href = '/sapp/'} className="px-4 py-2 bg-blue-600 rounded-lg">Go Home</button>
+        </div>
+      );
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      // User has a role but it's not allowed for this route
+      return <Navigate to="/" replace />;
+    }
   }
 
   return children;
