@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "postbuild": "copy dist\\index.html dist\\404.html"
+    "postbuild": "copy dist\\index.html dist\\404.html",
+    "deploy-functions": "firebase deploy --only functions"
   },
   "dependencies": {
     "date-fns": "^4.1.0",
