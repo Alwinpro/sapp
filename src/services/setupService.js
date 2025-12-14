@@ -1,34 +1,53 @@
-import { db, auth } from '../firebase/config';
-import { collection, getDocs, query, where, addDoc, setDoc, doc, Timestamp } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { supabase } from '../supabase/config';
 
 export const checkSystemInitialized = async () => {
     try {
-        const q = query(collection(db, "users"), where("role", "==", "admin"));
-        const snapshot = await getDocs(q);
-        return !snapshot.empty;
+        const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'admin')
+            .limit(1);
+
+        if (error) throw error;
+        return data && data.length > 0;
     } catch (error) {
         console.error("Error checking system initialization: ", error);
-        return false; // Assume not initialized if error (or handle differently)
+        return false;
     }
 };
 
 export const createSystemAdmin = async (email, password, name) => {
     try {
-        // 1. Create Authentication User
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        // 2. Create User Document in Firestore
-        await setDoc(doc(db, "users", user.uid), {
-            email: email,
-            name: name,
-            role: 'admin',
-            createdAt: Timestamp.now(),
-            isSystemAdmin: true
+        // 1. Create Authentication User in Supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name,
+                    role: 'admin'
+                }
+            }
         });
 
-        return user;
+        if (authError) throw authError;
+
+        // 2. Create User Document in Supabase database
+        const { error: dbError } = await supabase
+            .from('users')
+            .insert({
+                id: authData.user.id,
+                email,
+                name,
+                role: 'admin',
+                status: 'active',
+                is_system_admin: true,
+                created_at: new Date().toISOString()
+            });
+
+        if (dbError) throw dbError;
+
+        return authData.user;
     } catch (error) {
         console.error("Error creating system admin: ", error);
         throw error;
